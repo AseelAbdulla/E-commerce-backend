@@ -3,9 +3,12 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\Concerns\HasBilingualMessages;
 
 class StoreReviewRequest extends FormRequest
 {
+    use HasBilingualMessages;
+
     public function authorize(): bool
     {
         return true;
@@ -14,86 +17,36 @@ class StoreReviewRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'visitor_name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'visitor_email' => [
-                'required',
-                'email',
-                'max:255',
-            ],
-
-            'rating' => [
-                'required',
-                'integer',
-                'min:1',
-                'max:5',
-            ],
-
-            'comment' => [
-                'required',
-                'string',
-                'min:3',
-                'max:2000',
-            ],
-
-            'product_id' => [
-                'nullable',
-                'exists:products,id',
-            ],
+            'visitor_name' => ['required', 'string', 'max:255'],
+            'visitor_email' => ['required', 'email', 'max:255'],
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['required', 'string', 'min:3', 'max:2000'],
+            'product_id' => ['nullable', 'exists:products,id'],
         ];
     }
 
     public function messages(): array
     {
-        return [
-            'visitor_name.required' =>
-                'الاسم مطلوب.',
+        return $this->bilingual([
+            'visitor_name.required' => ['ar' => 'الاسم مطلوب.', 'en' => 'Name is required.'],
+            'visitor_name.string' => ['ar' => 'الاسم يجب أن يكون نصاً.', 'en' => 'Name must be a string.'],
+            'visitor_name.max' => ['ar' => 'الاسم طويل جداً.', 'en' => 'Name is too long.'],
 
-            'visitor_name.string' =>
-                'الاسم يجب أن يكون نصًا.',
+            'visitor_email.required' => ['ar' => 'البريد الإلكتروني مطلوب.', 'en' => 'Email is required.'],
+            'visitor_email.email' => ['ar' => 'البريد الإلكتروني غير صحيح.', 'en' => 'Email is invalid.'],
+            'visitor_email.max' => ['ar' => 'البريد الإلكتروني طويل جداً.', 'en' => 'Email is too long.'],
 
-            'visitor_name.max' =>
-                'الاسم طويل جدًا.',
+            'rating.required' => ['ar' => 'الرجاء اختيار التقييم.', 'en' => 'Please select a rating.'],
+            'rating.integer' => ['ar' => 'التقييم غير صحيح.', 'en' => 'Rating is invalid.'],
+            'rating.min' => ['ar' => 'يجب اختيار نجمة واحدة على الأقل.', 'en' => 'At least one star is required.'],
+            'rating.max' => ['ar' => 'لا يمكن أن يزيد التقييم عن 5 نجوم.', 'en' => 'Rating cannot exceed 5 stars.'],
 
-            'visitor_email.required' =>
-                'البريد الإلكتروني مطلوب.',
+            'comment.required' => ['ar' => 'التعليق مطلوب.', 'en' => 'Comment is required.'],
+            'comment.string' => ['ar' => 'التعليق يجب أن يكون نصاً.', 'en' => 'Comment must be a string.'],
+            'comment.min' => ['ar' => 'التعليق قصير جداً.', 'en' => 'Comment is too short.'],
+            'comment.max' => ['ar' => 'التعليق طويل جداً.', 'en' => 'Comment is too long.'],
 
-            'visitor_email.email' =>
-                'البريد الإلكتروني غير صحيح.',
-
-            'visitor_email.max' =>
-                'البريد الإلكتروني طويل جدًا.',
-
-            'rating.required' =>
-                'الرجاء اختيار التقييم.',
-
-            'rating.integer' =>
-                'التقييم غير صحيح.',
-
-            'rating.min' =>
-                'يجب اختيار نجمة واحدة على الأقل.',
-
-            'rating.max' =>
-                'لا يمكن أن يزيد التقييم عن 5 نجوم.',
-
-            'comment.required' =>
-                'التعليق مطلوب.',
-
-            'comment.string' =>
-                'التعليق يجب أن يكون نصًا.',
-
-            'comment.min' =>
-                'التعليق قصير جدًا.',
-
-            'comment.max' =>
-                'التعليق طويل جدًا.',
-
-            'product_id.exists' =>
-                'المنتج المحدد غير موجود.',
-        ];
+            'product_id.exists' => ['ar' => 'المنتج المحدد غير موجود.', 'en' => 'The selected product does not exist.'],
+        ]);
     }
 }

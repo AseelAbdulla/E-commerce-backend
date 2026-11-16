@@ -3,9 +3,12 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\Concerns\HasBilingualMessages;
 
 class UpdateAddressRequest extends FormRequest
 {
+    use HasBilingualMessages;
+
     public function authorize(): bool
     {
         return auth()->check();
@@ -25,12 +28,12 @@ class UpdateAddressRequest extends FormRequest
 
     public function messages(): array
     {
-        return [
-            'country.max' => 'Country name is too long',
-            'city.max' => 'City name is too long',
-            'region.max' => 'Region name is too long',
-            'street.max' => 'Street is too long',
-            'building.max' => 'Building is too long',
-        ];
+        return $this->bilingual([
+            'country.max' => ['ar' => 'اسم الدولة طويل جداً.', 'en' => 'Country name is too long.'],
+            'city.max' => ['ar' => 'اسم المدينة طويل جداً.', 'en' => 'City name is too long.'],
+            'region.max' => ['ar' => 'اسم المنطقة طويل جداً.', 'en' => 'Region name is too long.'],
+            'street.max' => ['ar' => 'اسم الشارع طويل جداً.', 'en' => 'Street is too long.'],
+            'building.max' => ['ar' => 'اسم المبنى طويل جداً.', 'en' => 'Building is too long.'],
+        ]);
     }
 }

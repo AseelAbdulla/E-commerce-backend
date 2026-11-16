@@ -12,6 +12,7 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'address_id',
+        'import_request_id',
 
         'order_type',
         'status',
@@ -66,5 +67,9 @@ class Order extends Model
     {
         return $this->hasMany(OrderDetail::class);
     }
-}
 
+    public function importRequest()
+    {
+        return $this->belongsTo(ImportRequest::class);
+    }
+}

@@ -4,114 +4,55 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Http\Requests\Concerns\HasBilingualMessages;
 
 class StoreUserRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+    use HasBilingualMessages;
+
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules.
-     */
     public function rules(): array
     {
         return [
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:20', 'unique:users,phone'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
 
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                'unique:users,email',
-            ],
-
-            'phone' => [
-                'required',
-                'string',
-                'max:20',
-                'unique:users,phone',
-            ],
-
-            'password' => [
-                'required',
-                'string',
-                'min:8',
-                'confirmed',
-            ],
-
-            /*
-             * Frontend يرسل اسم الدور
-             * وليس role_id
-             */
             'role' => [
                 'required',
                 'string',
-                Rule::exists('roles', 'name')
-                    ->where('guard_name', 'sanctum'),
+                Rule::exists('roles', 'name')->where('guard_name', 'sanctum'),
             ],
 
-            'status' => [
-                'nullable',
-                'in:active,inactive',
-            ],
-
-            // 'customer_type' => [
-            //     'nullable',
-            //     'in:local,international',
-            // ],
+            'status' => ['nullable', 'in:active,inactive'],
         ];
     }
 
-    /**
-     * Custom validation messages.
-     */
     public function messages(): array
     {
-        return [
-            'name.required' =>
-                'يرجى إدخال اسم المستخدم.',
+        return $this->bilingual([
+            'name.required' => ['ar' => 'يرجى إدخال اسم المستخدم.', 'en' => 'Please enter the user name.'],
 
-            'email.required' =>
-                'يرجى إدخال البريد الإلكتروني.',
+            'email.required' => ['ar' => 'يرجى إدخال البريد الإلكتروني.', 'en' => 'Please enter the email.'],
+            'email.email' => ['ar' => 'صيغة البريد الإلكتروني غير صحيحة.', 'en' => 'Email format is invalid.'],
+            'email.unique' => ['ar' => 'البريد الإلكتروني مستخدم بالفعل.', 'en' => 'Email is already in use.'],
 
-            'email.email' =>
-                'صيغة البريد الإلكتروني غير صحيحة.',
+            'phone.required' => ['ar' => 'يرجى إدخال رقم الجوال.', 'en' => 'Please enter the phone number.'],
+            'phone.unique' => ['ar' => 'رقم الجوال مستخدم بالفعل.', 'en' => 'Phone number is already in use.'],
 
-            'email.unique' =>
-                'البريد الإلكتروني مستخدم بالفعل.',
+            'password.required' => ['ar' => 'يرجى إدخال كلمة المرور.', 'en' => 'Please enter the password.'],
+            'password.min' => ['ar' => 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.', 'en' => 'Password must be at least 8 characters.'],
+            'password.confirmed' => ['ar' => 'كلمتا المرور غير متطابقتين.', 'en' => 'Passwords do not match.'],
 
-            'phone.unique' =>
-                'رقم الجوال مستخدم بالفعل.',
+            'role.required' => ['ar' => 'يرجى اختيار دور المستخدم.', 'en' => 'Please select a user role.'],
+            'role.exists' => ['ar' => 'الدور المحدد غير موجود.', 'en' => 'The selected role does not exist.'],
 
-            'password.required' =>
-                'يرجى إدخال كلمة المرور.',
-
-            'password.min' =>
-                'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
-
-            'password.confirmed' =>
-                'كلمتا المرور غير متطابقتين.',
-
-            'role.required' =>
-                'يرجى اختيار دور المستخدم.',
-
-            'role.exists' =>
-                'الدور المحدد غير موجود.',
-
-            'status.in' =>
-                'حالة الحساب غير صحيحة.',
-
-            // 'customer_type.in' =>
-            //     'نوع العميل غير صحيح.',
-        ];
+            'status.in' => ['ar' => 'حالة الحساب غير صحيحة.', 'en' => 'Account status is invalid.'],
+        ]);
     }
 }

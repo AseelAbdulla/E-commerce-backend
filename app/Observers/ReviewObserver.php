@@ -12,10 +12,29 @@ class ReviewObserver
     {
         $recipients = User::role(['admin', 'employee'], 'sanctum')->get();
 
-        // اسم الكاتب (سواء كان مستخدم مسجل أو زائر)
-        $authorName = $review->visitor_name ?? $review->user?->name ?? 'زائر';
-        $productTitle = $review->product?->name ?? 'منتج';
+        // 1. معالجة اسم الكاتب
+        $rawAuthor = $review->visitor_name ?? $review->user?->name ?? 'زائر';
+        $authorAr = is_array($rawAuthor) ? ($rawAuthor['ar'] ?? reset($rawAuthor)) : $rawAuthor;
+        $authorEn = is_array($rawAuthor) ? ($rawAuthor['en'] ?? reset($rawAuthor)) : $rawAuthor;
 
+        // 2. معالجة اسم المنتج (أحد أسباب الخطأ الشائعة)
+        $rawProduct = $review->product?->name ?? 'منتج';
+        
+        if (is_array($rawProduct)) {
+            $productAr = $rawProduct['ar'] ?? reset($rawProduct);
+            $productEn = $rawProduct['en'] ?? reset($rawProduct);
+        } else {
+            // التحقق في حال استخدام Spatie Translatable Directly
+            $productAr = is_object($review->product) && method_exists($review->product, 'getTranslation')
+                ? $review->product->getTranslation('name', 'ar')
+                : $rawProduct;
+
+            $productEn = is_object($review->product) && method_exists($review->product, 'getTranslation')
+                ? $review->product->getTranslation('name', 'en')
+                : $rawProduct;
+        }
+
+        // 3. إنشاء الإشعار بأمان
         foreach ($recipients as $recipient) {
             InternalNotification::create([
                 'user_id' => $recipient->id,
@@ -25,44 +44,13 @@ class ReviewObserver
                     'en' => 'New Pending Review'
                 ],
                 'message' => [
-                    'ar' => "أضاف {$authorName} تقييماً ({$review->rating}/5) على: {$productTitle}",
-                    'en' => "{$authorName} left a ({$review->rating}/5) review on: {$productTitle}"
+                    'ar' => "أضاف {$authorAr} تقييماً ({$review->rating}/5) على: {$productAr}",
+                    'en' => "{$authorEn} left a ({$review->rating}/5) review on: {$productEn}"
                 ],
                 'is_read' => false,
                 'sent_at' => now(),
             ]);
         }
     }
-
-    /**
-     * Handle the Review "updated" event.
-     */
-    public function updated(Review $review): void
-    {
-        //
-    }
-
-    /**
-     * Handle the Review "deleted" event.
-     */
-    public function deleted(Review $review): void
-    {
-        //
-    }
-
-    /**
-     * Handle the Review "restored" event.
-     */
-    public function restored(Review $review): void
-    {
-        //
-    }
-
-    /**
-     * Handle the Review "force deleted" event.
-     */
-    public function forceDeleted(Review $review): void
-    {
-        //
-    }
 }
+

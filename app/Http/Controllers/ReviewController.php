@@ -36,11 +36,14 @@ class ReviewController extends Controller
             'latest'
         );
 
+        $productId = $request->get('product_id');
+
         return ReviewResource::collection(
 
             $this->reviewService->approved(
                 $page,
-                $sort
+                $sort,
+                $productId ? (int) $productId : null
             )
 
         );

@@ -6,12 +6,9 @@ use App\Http\Requests\StoreProductUnitRequest;
 use App\Http\Requests\UpdateProductUnitRequest;
 
 use App\Http\Resources\ProductUnitResource;
-
-
-
+ 
 class ProductUnitController extends Controller
 {
-
 
     // عرض جميع الوحدات
     public function index()
@@ -20,27 +17,19 @@ class ProductUnitController extends Controller
         $units = ProductUnit::with('product')
             ->get();
 
-
         return ProductUnitResource::collection($units);
 
     }
-
-
-
-
+  
     // إضافة وحدة
     public function store(StoreProductUnitRequest $request)
     {
 
         $data = $request->validated();
-
-
-
+ 
         $unit = ProductUnit::create([
 
-
             'product_id' => $data['product_id'],
-
 
             'unit_name' => [
 
@@ -50,27 +39,25 @@ class ProductUnitController extends Controller
 
             ],
 
-
             'price' => $data['price'],
 
+            'has_discount' =>
+                $data['has_discount'] ?? false,
+
+            'discount_price' =>
+                $data['discount_price'] ?? null,
 
             'stock' =>
                 $data['stock'] ?? 0,
 
         ]);
-
-
-
+ 
         return new ProductUnitResource(
             $unit->load('product')
         );
 
     }
-
-
-
-
-
+   
     // عرض وحدة واحدة
     public function show(ProductUnit $productUnit)
     {
@@ -80,11 +67,7 @@ class ProductUnitController extends Controller
         );
 
     }
-
-
-
-
-
+   
     // تحديث الوحدة
     public function update(
         UpdateProductUnitRequest $request,
@@ -93,15 +76,11 @@ class ProductUnitController extends Controller
     {
 
         $data = $request->validated();
-
-
-
+ 
         $productUnit->update([
-
 
             'product_id' =>
                 $data['product_id'],
-
 
             'unit_name' => [
 
@@ -111,36 +90,32 @@ class ProductUnitController extends Controller
 
             ],
 
-
             'price' =>
                 $data['price'],
 
+            'has_discount' =>
+                $data['has_discount'] ?? false,
+
+            'discount_price' =>
+                $data['discount_price'] ?? null,
 
             'stock' =>
                 $data['stock'] ?? 0,
 
         ]);
-
-
-
+ 
         return new ProductUnitResource(
             $productUnit->load('product')
         );
 
     }
-
-
-
-
-
+   
     // حذف الوحدة
     public function destroy(ProductUnit $productUnit)
     {
 
         $productUnit->delete();
-
-
-
+ 
         return response()->json([
 
             'message' =>

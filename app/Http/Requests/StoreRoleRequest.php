@@ -1,12 +1,14 @@
-
 <?php
 
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\Concerns\HasBilingualMessages;
 
 class StoreRoleRequest extends FormRequest
 {
+    use HasBilingualMessages;
+
     public function authorize(): bool
     {
         return true;
@@ -15,31 +17,21 @@ class StoreRoleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => [
-                'required',
-                'string',
-                'max:100',
-                'unique:roles,name',
-            ],
-
-            'display_name' => [
-                'required',
-                'array',
-            ],
+            'name' => ['required', 'string', 'max:100', 'unique:roles,name'],
+            'display_name' => ['required', 'array'],
         ];
     }
 
     public function messages(): array
     {
-        return [
-            'name.required' => 'Role name is required.',
-            'name.string' => 'Role name must be a string.',
-            'name.max' => 'Role name may not be greater than 100 characters.',
-            'name.unique' => 'This role already exists.',
+        return $this->bilingual([
+            'name.required' => ['ar' => 'اسم الدور مطلوب.', 'en' => 'Role name is required.'],
+            'name.string' => ['ar' => 'اسم الدور يجب أن يكون نصاً.', 'en' => 'Role name must be a string.'],
+            'name.max' => ['ar' => 'اسم الدور يجب ألا يتجاوز 100 حرف.', 'en' => 'Role name may not exceed 100 characters.'],
+            'name.unique' => ['ar' => 'هذا الدور موجود بالفعل.', 'en' => 'This role already exists.'],
 
-            'display_name.required' => 'Display name is required.',
-            'display_name.array' => 'Display name must be an array.',
-        ];
+            'display_name.required' => ['ar' => 'الاسم المعروض مطلوب.', 'en' => 'Display name is required.'],
+            'display_name.array' => ['ar' => 'الاسم المعروض يجب أن يكون بصيغة صحيحة.', 'en' => 'Display name must be an array.'],
+        ]);
     }
 }
-

@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ImportOfferAccepted;
+use App\Events\ImportOfferRejected;
 use App\Http\Requests\ReviewImportRequest;
 use App\Http\Requests\StoreImportRequest;
 use App\Http\Resources\ImportRequestResource;
 use App\Models\ImportRequest;
-use App\Models\InternalNotification; // 👈 1. استدعاء الموديل
 use App\Services\ImportRequestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,13 +22,11 @@ class ImportRequestController extends Controller
     {
         $user = $request->user();
 
-        // إذا كان المستخدم أدمن، نرجع كل الطلبات للوحة التحكم
         if ($user->hasRole('admin') || $user->can('view-orders')) {
             $requests = ImportRequest::with(['user', 'items.product', 'items.unit', 'items.product.images'])
                 ->latest()
                 ->get();
         } else {
-            // إذا كان عميل عادي، نرجع طلباته هو فقط
             $requests = $user->importRequests()
                 ->with(['items.product', 'items.unit', 'items.product.images'])
                 ->latest()
@@ -37,9 +36,9 @@ class ImportRequestController extends Controller
         return ImportRequestResource::collection($requests);
     }
 
-    // تقديم طلب استيراد جديد من العميل
     public function store(StoreImportRequest $request): JsonResponse
     {
+        // ملاحظة: إشعار الأدمن يتم إطلاقه تلقائياً عبر ImportRequestService أو Event مخصص عند إنشاء الطلب
         $importRequest = $this->importRequestService->createRequest(
             $request->user(),
             $request->validated()
@@ -52,42 +51,21 @@ class ImportRequestController extends Controller
         ], 201);
     }
 
-    // عرض تفاصيل طلب محدد
     public function show(ImportRequest $importRequest): ImportRequestResource
     {
         $importRequest->load(['items.product', 'items.unit', 'user']);
         return new ImportRequestResource($importRequest);
     }
 
-    // مراجعة الطلب من قبل المدير (قبول وإرسال عرض سعر / رفض)
     public function review(ReviewImportRequest $request, ImportRequest $importRequest): JsonResponse
     {
+        // ملاحظة: إشعار العميل يتم إطلاقه عبر ImportRequestReviewed Event داخل reviewRequest في Service
         $updatedRequest = $this->importRequestService->reviewRequest(
             $importRequest,
             $request->validated()
         );
 
-        // 🔔 2. إنشاء الإشعار وإدراجه في جدول internal_notifications
         $isRejected = $request->action === 'reject';
-
-        InternalNotification::create([
-            'user_id' => $importRequest->user_id, // العميل صاحب الطلب
-            'title' => [
-                'ar' => $isRejected ? 'تم رفض طلب الاستيراد' : 'تم تسعير طلب الاستيراد',
-                'en' => $isRejected ? 'Import Request Rejected' : 'Import Request Priced'
-            ],
-            'message' => [
-                'ar' => $isRejected
-                    ? "عذراً، تم رفض طلب الاستيراد الخاص بك رقم (#{$importRequest->id})."
-                    : "تمت مراجعة وتسعير طلب الاستيراد رقم (#{$importRequest->id}) وإرسال عرض السعر.",
-                'en' => $isRejected
-                    ? "Your import request (#{$importRequest->id}) has been rejected."
-                    : "Your import request (#{$importRequest->id}) has been priced."
-            ],
-            'type' => $isRejected ? 'import_request_rejected' : 'import_request_reviewed',
-            'is_read' => false,
-            'sent_at' => now(),
-        ]);
 
         return response()->json([
             'status'  => true,
@@ -99,50 +77,58 @@ class ImportRequestController extends Controller
     // قبول عرض السعر من قبل العميل
     public function acceptOffer(Request $request, $id): JsonResponse
     {
-        $importRequest = $request->user()->importRequests()->findOrFail($id);
+        $importRequest = $request->user()->importRequests()
+            ->with(['items'])
+            ->findOrFail($id);
 
         if ($importRequest->status !== 'offer_sent') {
             return response()->json(['message' => 'لا يمكن اتخاذ إجراء على هذا الطلب حالياً.'], 422);
         }
 
-        $importRequest->update([
-            'status' => 'offer_accepted'
-        ]);
+        // استدعاء الخدمة لتحويل الطلب وإنشاء السجل المرتبط
+        $order = $this->importRequestService->convertOfferToOrder($importRequest, $request->user());
 
         return response()->json([
-            'status' => true,
-            'message' => 'تم قبول عرض السعر بنجاح وجاري متابعة طلبك.',
-            'data' => new ImportRequestResource($importRequest)
+            'status'  => true,
+            'message' => 'تم قبول عرض السعر بنجاح ونقل الطلب إلى قائمة الطلبات النشطة.',
+            'data'    => [
+                'import_request_id' => $importRequest->id,
+                'order_id'          => $order->id,
+                'status'            => $order->status,
+            ]
         ]);
     }
 
-    // رفض عرض السعر من قبل العميل
     public function rejectOffer(Request $request, $id): JsonResponse
     {
-        $importRequest = $request->user()->importRequests()->findOrFail($id);
+        $user = $request->user();
+        $importRequest = $user->importRequests()->findOrFail($id);
 
         if ($importRequest->status !== 'offer_sent') {
             return response()->json(['message' => 'لا يمكن اتخاذ إجراء على هذا الطلب حالياً.'], 422);
         }
 
+        $reason = $request->input('reason', 'تم رفض العرض من قبل العميل');
+
         $importRequest->update([
-            'status' => 'offer_rejected',
-            'rejection_reason' => $request->input('reason', 'تم رفض العرض من قبل العميل')
+            'status'           => 'offer_rejected',
+            'rejection_reason' => $reason
         ]);
 
+        // 🚀 إطلاق حدث رفض العرض لإشعار الأدمن
+        event(new ImportOfferRejected($importRequest));
+
         return response()->json([
-            'status' => true,
+            'status'  => true,
             'message' => 'تم رفض عرض السعر.',
-            'data' => new ImportRequestResource($importRequest)
+            'data'    => new ImportRequestResource($importRequest)
         ]);
     }
 
     public function cancel(Request $request, $id)
     {
-        // البحث عن الطلب المباشر التابع للمستخدم الحقيقي
         $importRequest = $request->user()->importRequests()->findOrFail($id);
 
-        // التأكد من أن حالة الطلب ما زالت قابلة للإلغاء
         if ($importRequest->status !== 'pending') {
             return response()->json([
                 'message' => 'لا يمكن إلغاء الطلب بعد البدء في معالجته أو مراجعته.'
@@ -160,17 +146,14 @@ class ImportRequestController extends Controller
 
     public function update(StoreImportRequest $request, $id)
     {
-        // 1. التثبت من أن الطلب يخص المستخدم
         $importRequest = $request->user()->importRequests()->findOrFail($id);
 
-        // 2. حظر التعديل إذا خرج الطلب من حالة الانتظار
         if ($importRequest->status !== 'pending') {
             return response()->json([
                 'message' => 'لا يمكن تعديل الطلب بعد البدء في مراجعته أو تجهيزه.'
             ], 422);
         }
 
-        // 3. تحديث البيانات الأساسية
         $importRequest->update($request->only([
             'currency',
             'phone',
@@ -178,9 +161,8 @@ class ImportRequestController extends Controller
             'notes'
         ]));
 
-        // 4. إعادة إدخال العناصر (Items)
         if ($request->has('items')) {
-            $importRequest->items()->delete(); // حذف العناصر القديمة
+            $importRequest->items()->delete();
 
             foreach ($request->items as $item) {
                 $importRequest->items()->create([

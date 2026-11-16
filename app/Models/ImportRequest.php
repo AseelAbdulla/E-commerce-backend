@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ImportRequest extends Model
 {
-       use HasFactory;
+    use HasFactory;
 
     protected $fillable = [
         'user_id',
@@ -40,5 +40,10 @@ class ImportRequest extends Model
     public function items()
     {
         return $this->hasMany(ImportRequestItem::class);
+    }
+
+    public function order()
+    {
+        return $this->hasOne(Order::class);
     }
 }

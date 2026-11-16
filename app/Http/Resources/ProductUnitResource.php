@@ -5,7 +5,6 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-
 class ProductUnitResource extends JsonResource
 {
 
@@ -16,7 +15,6 @@ class ProductUnitResource extends JsonResource
 
             'id' => $this->id,
 
-
             'unit_name' => [
 
                 'ar' => $this->unit_name['ar'] ?? null,
@@ -25,12 +23,18 @@ class ProductUnitResource extends JsonResource
 
             ],
 
-
             'price' => $this->price,
 
+            'has_discount' => $this->has_discount,
+
+            'discount_price' => $this->discount_price,
+
+            // السعر الفعّال (بعد الخصم لو موجود) - جاهز للاستخدام المباشر بالفرونت
+            'active_price' => $this->has_discount && $this->discount_price !== null
+                ? $this->discount_price
+                : $this->price,
 
             'stock' => $this->stock,
-
 
             'product' => $this->whenLoaded(
                 'product',
@@ -46,7 +50,6 @@ class ProductUnitResource extends JsonResource
 
                 }
             ),
-
 
             'created_at' => $this->created_at,
 

@@ -46,4 +46,10 @@ class Product extends Model
     {
         return $this->hasMany(Review::class);
     }
+
+    // التقييمات المعتمدة فقط (لحساب المتوسط وعدد التقييمات)
+    public function approvedReviews()
+    {
+        return $this->hasMany(Review::class)->approved();
+    }
 }

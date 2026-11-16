@@ -4,103 +4,50 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Http\Requests\Concerns\HasBilingualMessages;
 
 class UpdateUserRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+    use HasBilingualMessages;
+
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get validation rules.
-     */
     public function rules(): array
     {
         $id = $this->route('user');
 
         return [
-            'name' => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
+            'name' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($id)],
+            'phone' => ['nullable', 'string', 'max:20', Rule::unique('users', 'phone')->ignore($id)],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'status' => ['nullable', 'in:active,inactive'],
 
-            'email' => [
-                'nullable',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($id),
-            ],
-
-            'phone' => [
-                'nullable',
-                'string',
-                'max:20',
-                Rule::unique('users', 'phone')->ignore($id),
-            ],
-
-            /*
-             * كلمة المرور اختيارية في التعديل
-             */
-            'password' => [
-                'nullable',
-                'string',
-                'min:8',
-                'confirmed',
-            ],
-
-            'status' => [
-                'nullable',
-                'in:active,inactive',
-            ],
-
-            /*
-             * اسم الدور وليس role_id
-             */
             'role' => [
                 'nullable',
                 'string',
-                Rule::exists('roles', 'name')
-                    ->where('guard_name', 'sanctum'),
+                Rule::exists('roles', 'name')->where('guard_name', 'sanctum'),
             ],
-
-            // 'customer_type' => [
-            //     'nullable',
-            //     'in:local,international',
-            // ],
         ];
     }
 
-    /**
-     * Custom validation messages.
-     */
     public function messages(): array
     {
-        return [
-            'email.unique' =>
-                'البريد الإلكتروني مستخدم بالفعل.',
+        return $this->bilingual([
+            'email.email' => ['ar' => 'صيغة البريد الإلكتروني غير صحيحة.', 'en' => 'Email format is invalid.'],
+            'email.unique' => ['ar' => 'البريد الإلكتروني مستخدم بالفعل.', 'en' => 'Email is already in use.'],
 
-            'phone.unique' =>
-                'رقم الجوال مستخدم بالفعل.',
+            'phone.unique' => ['ar' => 'رقم الجوال مستخدم بالفعل.', 'en' => 'Phone number is already in use.'],
 
-            'password.min' =>
-                'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
+            'password.min' => ['ar' => 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.', 'en' => 'Password must be at least 8 characters.'],
+            'password.confirmed' => ['ar' => 'كلمتا المرور غير متطابقتين.', 'en' => 'Passwords do not match.'],
 
-            'password.confirmed' =>
-                'كلمتا المرور غير متطابقتين.',
+            'role.exists' => ['ar' => 'الدور المحدد غير موجود.', 'en' => 'The selected role does not exist.'],
 
-            'role.exists' =>
-                'الدور المحدد غير موجود.',
-
-            'status.in' =>
-                'حالة الحساب غير صحيحة.',
-
-            'customer_type.in' =>
-                'نوع العميل غير صحيح.',
-        ];
+            'status.in' => ['ar' => 'حالة الحساب غير صحيحة.', 'en' => 'Account status is invalid.'],
+        ]);
     }
 }

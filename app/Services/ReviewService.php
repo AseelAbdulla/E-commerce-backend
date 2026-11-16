@@ -14,7 +14,8 @@ class ReviewService
 
     public function approved(
         int $page = 1,
-        string $sort = 'latest'
+        string $sort = 'latest',
+        ?int $productId = null
     ) {
         $query = Review::query()
             ->approved()
@@ -22,6 +23,11 @@ class ReviewService
                 'user',
                 'product',
             ]);
+
+        // فلترة حسب منتج معين إذا تم تمريره
+        if ($productId) {
+            $query->where('product_id', $productId);
+        }
 
         switch ($sort) {
 

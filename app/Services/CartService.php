@@ -86,13 +86,8 @@ $query->where('user_id', $userId);
 
 
             if ($cartDetail) {
-
-
                 $newQuantity =
                     $cartDetail->quantity + $data['quantity'];
-
-
-
                 $this->checkStock(
                     $unit,
                     $newQuantity
@@ -126,15 +121,9 @@ $query->where('user_id', $userId);
 
                 ]);
             }
-
-
-
             return $this->loadCart($cart);
         });
     }
-
-
-
 
     /**
      * تعديل كمية عنصر في السلة
@@ -150,13 +139,7 @@ $query->where('user_id', $userId);
             $user,
             $cartDetail
         );
-
-
-
         $unit = $cartDetail->unit;
-
-
-
         $this->checkStock(
             $unit,
             $quantity
@@ -174,9 +157,6 @@ $query->where('user_id', $userId);
             $cartDetail->cart
         );
     }
-
-
-
 
     /**
      * حذف عنصر من السلة
@@ -196,9 +176,6 @@ $query->where('user_id', $userId);
         $cartDetail->delete();
     }
 
-
-
-
     /**
      * تفريغ السلة
      */
@@ -216,8 +193,6 @@ $query->where('user_id', $userId);
             $cart->details()->delete();
         }
     }
-
-
 
     /**
      * التحقق من ملكية العنصر

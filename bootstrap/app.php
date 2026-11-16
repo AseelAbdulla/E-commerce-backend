@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
     $middleware->api(prepend: [
         \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        \App\Http\Middleware\SetLocaleFromHeader::class,
     ]);
 
 
@@ -42,9 +43,13 @@ return Application::configure(basePath: dirname(__DIR__))
         */
         $exceptions->render(function (AuthenticationException $e, $request) {
             if ($request->expectsJson() || $request->is('api/*')) {
+                $isArabic = app()->getLocale() === 'ar';
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthenticated: Invalid or missing token.',
+                    'message' => $isArabic
+                        ? 'غير مصرح: التوكن مفقود أو غير صحيح.'
+                        : 'Unauthenticated: Invalid or missing token.',
                 ], Response::HTTP_UNAUTHORIZED);
             }
         });
@@ -56,12 +61,18 @@ return Application::configure(basePath: dirname(__DIR__))
         */
         $exceptions->render(function (UnauthorizedException $e, $request) {
             if ($request->expectsJson() || $request->is('api/*')) {
+                $isArabic = app()->getLocale() === 'ar';
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Forbidden: You do not have the required role or permission for this dashboard.',
+                    'message' => $isArabic
+                        ? 'ممنوع: لا تملك الدور أو الصلاحية المطلوبة للوصول لهذه اللوحة.'
+                        : 'Forbidden: You do not have the required role or permission for this dashboard.',
                 ], Response::HTTP_FORBIDDEN);
             }
         });
 
     })
     ->create();
+
+

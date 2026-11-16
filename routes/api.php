@@ -35,6 +35,7 @@ use App\Http\Controllers\WalletController;
 // Authentication
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
+Route::post('/forgot-password', [PasswordResetLinkController::class, 'store']);
 
 // Public Reads
 Route::get('/wallets', [WalletController::class, 'index']);
@@ -44,6 +45,7 @@ Route::get('/settings/{setting}', [SettingController::class, 'show']);
 Route::get('/reviews/approved', [ReviewController::class, 'approved']);
 
 // Public Catalog API Resources (Read-Only)
+Route::get('/products/best-sellers', [ProductController::class, 'bestSellers']);
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 Route::apiResource('products', ProductController::class)->only(['index', 'show']);
 Route::apiResource('product-images', ProductImageController::class)->only(['index', 'show']);
@@ -98,7 +100,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/notifications', [InternalNotificationController::class, 'index']);
         Route::patch('/notifications/read-all', [InternalNotificationController::class, 'markAllAsRead']);
         Route::get('/notifications/{id}', [InternalNotificationController::class, 'customerShow']);
-        Route::patch('/notifications/{id}/read', [InternalNotificationController::class, 'markAsRead']);
+        Route::put('/notifications/{id}/read', [InternalNotificationController::class, 'markAsRead']);
     });
 
     // Reviews (Authenticated User Action)

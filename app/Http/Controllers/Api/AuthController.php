@@ -4,18 +4,35 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Address;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
     /**
+     * تحويل مصفوفة رسائل ثنائية اللغة إلى رسائل بلغة واحدة
+     * حسب اللغة الحالية للتطبيق (يحددها middleware SetLocaleFromHeader)
+     */
+    private function bilingualMessages(array $messages): array
+    {
+        $locale = App::getLocale();
+
+        return array_map(
+            fn ($translations) => $translations[$locale] ?? $translations['ar'],
+            $messages
+        );
+    }
+
+    /**
      * Register
      *
-     * إنشاء حساب مستخدم جديد
+     * إنشاء حساب مستخدم جديد مع عنوانه الأساسي
      */
     public function register(Request $request): JsonResponse
     {
@@ -53,72 +70,116 @@ class AuthController extends Controller
                 'confirmed',
             ],
 
-            // 👈 إضافة التحقق من حقل role المراد إنشاؤه
             'role' => [
                 'nullable',
                 'string',
                 'in:local-client,import-client',
             ],
-        ]);
+
+            'country' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'city' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'region' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'street' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'building' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'notes' => [
+                'nullable',
+                'string',
+            ],
+        ], $this->bilingualMessages([
+            'name.required' => ['ar' => 'الاسم مطلوب.', 'en' => 'Name is required.'],
+            'name.max' => ['ar' => 'الاسم طويل جداً.', 'en' => 'Name is too long.'],
+
+            'email.required' => ['ar' => 'البريد الإلكتروني مطلوب.', 'en' => 'Email is required.'],
+            'email.email' => ['ar' => 'صيغة البريد الإلكتروني غير صحيحة.', 'en' => 'Email format is invalid.'],
+            'email.unique' => ['ar' => 'البريد الإلكتروني مستخدم بالفعل.', 'en' => 'Email is already in use.'],
+
+            'phone.required' => ['ar' => 'رقم الجوال مطلوب.', 'en' => 'Phone number is required.'],
+
+            'password.required' => ['ar' => 'كلمة المرور مطلوبة.', 'en' => 'Password is required.'],
+            'password.min' => ['ar' => 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.', 'en' => 'Password must be at least 8 characters.'],
+            'password.confirmed' => ['ar' => 'كلمتا المرور غير متطابقتين.', 'en' => 'Passwords do not match.'],
+
+            'role.in' => ['ar' => 'نوع الحساب غير صحيح.', 'en' => 'Account type is invalid.'],
+
+            'country.required' => ['ar' => 'حقل الدولة مطلوب.', 'en' => 'Country is required.'],
+            'city.required' => ['ar' => 'حقل المدينة مطلوب.', 'en' => 'City is required.'],
+            'region.required' => ['ar' => 'حقل المنطقة مطلوب.', 'en' => 'Region is required.'],
+            'street.required' => ['ar' => 'حقل الشارع مطلوب.', 'en' => 'Street is required.'],
+            'building.required' => ['ar' => 'حقل المبنى مطلوب.', 'en' => 'Building is required.'],
+        ]));
 
         /*
         |--------------------------------------------------------------------------
-        | Create User
+        | Create User + Address (Transaction)
         |--------------------------------------------------------------------------
         */
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'],
+        $result = DB::transaction(function () use ($validated, $request) {
 
-            /*
-             * User Model عندك يستخدم cast للتشفير
-             */
-            'password' => $validated['password'],
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'],
+                'password' => $validated['password'],
+                'status' => 'active',
+            ]);
 
-            'status' => 'active',
-        ]);
+            $requestedRole = $request->input('role', 'local-client');
 
-        /*
-        |--------------------------------------------------------------------------
-        | Assign Dynamic Role
-        |--------------------------------------------------------------------------
-        |
-        | يتم قراءة الدور المرسل من React (سواء import-client أو local-client)،
-        | وتعيين local-client كقيمة افتراضية فقط إذا لم يتم تحديد الدور.
-        |
-        */
+            if (Role::where('name', $requestedRole)->where('guard_name', 'sanctum')->exists()) {
+                $user->assignRole($requestedRole);
+            } elseif (Role::where('name', $requestedRole)->exists()) {
+                $user->assignRole($requestedRole);
+            } else {
+                $user->assignRole('local-client');
+            }
 
-        $requestedRole = $request->input('role', 'local-client');
+            $address = Address::create([
+                'user_id' => $user->id,
+                'country' => $validated['country'],
+                'city' => $validated['city'],
+                'region' => $validated['region'],
+                'street' => $validated['street'],
+                'building' => $validated['building'],
+                'notes' => $validated['notes'] ?? null,
+            ]);
 
-        if (Role::where('name', $requestedRole)->where('guard_name', 'sanctum')->exists()) {
-            $user->assignRole($requestedRole);
-        } elseif (Role::where('name', $requestedRole)->exists()) {
-            // احتياطاً في حال كان guard_name مختلفاً في قاعدة البيانات (مثل web)
-            $user->assignRole($requestedRole);
-        } else {
-            // في حال لم يوجد الدور الممرر إطلاقاً، يتم إسناد الدور الافتراضي
-            $user->assignRole('local-client');
-        }
+            $token = $user->createToken('auth-token')->plainTextToken;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Create Token
-        |--------------------------------------------------------------------------
-        */
+            $role = $user->getRoleNames()->first();
 
-        $token = $user
-            ->createToken('auth-token')
-            ->plainTextToken;
-
-        /*
-        |--------------------------------------------------------------------------
-        | Get Role
-        |--------------------------------------------------------------------------
-        */
-
-        $role = $user->getRoleNames()->first();
+            return [
+                'user' => $user,
+                'address' => $address,
+                'role' => $role,
+                'token' => $token,
+            ];
+        });
 
         /*
         |--------------------------------------------------------------------------
@@ -129,24 +190,36 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
 
-            'message' => 'تم إنشاء الحساب بنجاح',
+            'message' => App::getLocale() === 'ar'
+                ? 'تم إنشاء الحساب بنجاح'
+                : 'Account created successfully',
 
             'data' => [
                 'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone,
+                    'id' => $result['user']->id,
+                    'name' => $result['user']->name,
+                    'email' => $result['user']->email,
+                    'phone' => $result['user']->phone,
 
-                    'role' => $role,
+                    'role' => $result['role'],
 
-                    'permissions' => $user
+                    'permissions' => $result['user']
                         ->getAllPermissions()
                         ->pluck('name')
                         ->values(),
                 ],
 
-                'token' => $token,
+                'address' => [
+                    'id' => $result['address']->id,
+                    'country' => $result['address']->country,
+                    'city' => $result['address']->city,
+                    'region' => $result['address']->region,
+                    'street' => $result['address']->street,
+                    'building' => $result['address']->building,
+                    'notes' => $result['address']->notes,
+                ],
+
+                'token' => $result['token'],
 
                 'token_type' => 'Bearer',
             ],
@@ -160,12 +233,6 @@ class AuthController extends Controller
      */
     public function login(Request $request): JsonResponse
     {
-        /*
-        |--------------------------------------------------------------------------
-        | Validate Request
-        |--------------------------------------------------------------------------
-        */
-
         $credentials = $request->validate([
             'email' => [
                 'required',
@@ -176,13 +243,11 @@ class AuthController extends Controller
                 'required',
                 'string',
             ],
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Attempt Login
-        |--------------------------------------------------------------------------
-        */
+        ], $this->bilingualMessages([
+            'email.required' => ['ar' => 'البريد الإلكتروني مطلوب.', 'en' => 'Email is required.'],
+            'email.email' => ['ar' => 'صيغة البريد الإلكتروني غير صحيحة.', 'en' => 'Email format is invalid.'],
+            'password.required' => ['ar' => 'كلمة المرور مطلوبة.', 'en' => 'Password is required.'],
+        ]));
 
         if (
             !Auth::attempt([
@@ -192,25 +257,15 @@ class AuthController extends Controller
         ) {
             throw ValidationException::withMessages([
                 'email' => [
-                    'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+                    App::getLocale() === 'ar'
+                        ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
+                        : 'Invalid email or password',
                 ],
             ]);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Get Authenticated User
-        |--------------------------------------------------------------------------
-        */
-
         /** @var \App\Models\User $user */
         $user = Auth::user();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Check Account Status
-        |--------------------------------------------------------------------------
-        */
 
         if (
             isset($user->status) &&
@@ -221,73 +276,37 @@ class AuthController extends Controller
             return response()->json([
                 'success' => false,
 
-                'message' => 'هذا الحساب غير مفعل',
+                'message' => App::getLocale() === 'ar'
+                    ? 'هذا الحساب غير مفعل'
+                    : 'This account is inactive',
             ], 403);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Delete Old Tokens
-        |--------------------------------------------------------------------------
-        |
-        | حتى لا تتراكم Tokens القديمة للمستخدم.
-        |
-        */
-
         $user->tokens()->delete();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Create New Token
-        |--------------------------------------------------------------------------
-        */
-
-        $token = $user
-            ->createToken('auth-token')
-            ->plainTextToken;
-
-        /*
-        |--------------------------------------------------------------------------
-        | Get Real Role From Spatie
-        |--------------------------------------------------------------------------
-        */
+        $token = $user->createToken('auth-token')->plainTextToken;
 
         $role = $user->getRoleNames()->first();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Get Permissions
-        |--------------------------------------------------------------------------
-        */
 
         $permissions = $user
             ->getAllPermissions()
             ->pluck('name')
             ->values();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Return Login Response
-        |--------------------------------------------------------------------------
-        */
-
         return response()->json([
             'success' => true,
 
-            'message' => 'تم تسجيل الدخول بنجاح',
+            'message' => App::getLocale() === 'ar'
+                ? 'تم تسجيل الدخول بنجاح'
+                : 'Logged in successfully',
 
             'data' => [
                 'user' => [
                     'id' => $user->id,
-
                     'name' => $user->name,
-
                     'email' => $user->email,
-
                     'phone' => $user->phone,
-
                     'role' => $role,
-
                     'permissions' => $permissions,
                 ],
 
@@ -305,57 +324,29 @@ class AuthController extends Controller
      */
     public function me(Request $request): JsonResponse
     {
-        /*
-        |--------------------------------------------------------------------------
-        | Get Authenticated User
-        |--------------------------------------------------------------------------
-        */
-
         /** @var \App\Models\User $user */
         $user = $request->user();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Get Role
-        |--------------------------------------------------------------------------
-        */
-
-        $role = $user
-            ->getRoleNames()
-            ->first();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Get Permissions
-        |--------------------------------------------------------------------------
-        */
+        $role = $user->getRoleNames()->first();
 
         $permissions = $user
             ->getAllPermissions()
             ->pluck('name')
             ->values();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Return Response
-        |--------------------------------------------------------------------------
-        */
-
         return response()->json([
             'success' => true,
 
-            'message' => 'تم جلب بيانات المستخدم',
+            'message' => App::getLocale() === 'ar'
+                ? 'تم جلب بيانات المستخدم'
+                : 'User data retrieved',
 
             'data' => [
                 'user' => [
                     'id' => $user->id,
-
                     'name' => $user->name,
-
                     'email' => $user->email,
-
                     'phone' => $user->phone,
-
                     'status' => $user->status,
                 ],
 
@@ -373,37 +364,20 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        /*
-        |--------------------------------------------------------------------------
-        | Get Current Token
-        |--------------------------------------------------------------------------
-        */
-
         $token = $request
             ->user()
             ->currentAccessToken();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Delete Current Token
-        |--------------------------------------------------------------------------
-        */
 
         if ($token) {
             $token->delete();
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Return Response
-        |--------------------------------------------------------------------------
-        */
-
         return response()->json([
             'success' => true,
 
-            'message' => 'تم تسجيل الخروج بنجاح',
+            'message' => App::getLocale() === 'ar'
+                ? 'تم تسجيل الخروج بنجاح'
+                : 'Logged out successfully',
         ], 200);
     }
 }
-

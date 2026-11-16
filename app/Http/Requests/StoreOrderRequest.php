@@ -4,9 +4,12 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Http\Requests\Concerns\HasBilingualMessages;
 
 class StoreOrderRequest extends FormRequest
 {
+    use HasBilingualMessages;
+
     public function authorize(): bool
     {
         return true;
@@ -15,105 +18,43 @@ class StoreOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-
-            'address_id' => [
-                'required',
-                'exists:addresses,id',
-            ],
-
-            'customer_name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'customer_phone' => [
-                'required',
-                'string',
-                'max:50',
-            ],
-
-            'customer_email' => [
-                'required',
-                'email',
-                'max:255',
-            ],
-
-            'notes' => [
-                'nullable',
-                'string',
-            ],
-
-            'payment_method' => [
-                'required',
-                Rule::in([
-                    'cash_on_delivery',
-                    'wallet',
-                ]),
-            ],
-
-            'payment_receipt' => [
-                'nullable',
-                'required_if:payment_method,wallet',
-                'image',
-                'mimes:jpg,jpeg,png,webp',
-                'max:2048',
-            ],
-
-            'wallet_number' => [
-                'nullable',
-                'required_if:payment_method,wallet',
-                'string',
-                'max:50',
-            ],
-
-            'shipping_fee' => [
-                'nullable',
-                'numeric',
-                'min:0',
-            ],
+            'address_id' => ['required', 'exists:addresses,id'],
+            'customer_name' => ['required', 'string', 'max:255'],
+            'customer_phone' => ['required', 'string', 'max:50'],
+            'customer_email' => ['required', 'email', 'max:255'],
+            'notes' => ['nullable', 'string'],
+            'payment_method' => ['required', Rule::in(['cash_on_delivery', 'wallet'])],
+            'payment_receipt' => ['nullable', 'required_if:payment_method,wallet', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'wallet_number' => ['nullable', 'required_if:payment_method,wallet', 'string', 'max:50'],
+            'shipping_fee' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 
     public function messages(): array
     {
-        return [
+        return $this->bilingual([
+            'address_id.required' => ['ar' => 'العنوان مطلوب.', 'en' => 'Address is required.'],
+            'address_id.exists' => ['ar' => 'العنوان المحدد غير موجود.', 'en' => 'The selected address does not exist.'],
 
-            'address_id.required' =>
-                'العنوان مطلوب.',
+            'customer_name.required' => ['ar' => 'اسم العميل مطلوب.', 'en' => 'Customer name is required.'],
 
-            'address_id.exists' =>
-                'العنوان المحدد غير موجود.',
+            'customer_phone.required' => ['ar' => 'رقم الهاتف مطلوب.', 'en' => 'Phone number is required.'],
 
-            'customer_name.required' =>
-                'اسم العميل مطلوب.',
+            'customer_email.required' => ['ar' => 'البريد الإلكتروني مطلوب.', 'en' => 'Email is required.'],
+            'customer_email.email' => ['ar' => 'البريد الإلكتروني غير صحيح.', 'en' => 'Email is invalid.'],
 
-            'customer_phone.required' =>
-                'رقم الهاتف مطلوب.',
+            'payment_method.required' => ['ar' => 'طريقة الدفع مطلوبة.', 'en' => 'Payment method is required.'],
+            'payment_method.in' => ['ar' => 'طريقة الدفع غير صحيحة.', 'en' => 'Payment method is invalid.'],
 
-            'customer_email.required' =>
-                'البريد الإلكتروني مطلوب.',
+            'payment_receipt.required_if' => ['ar' => 'إيصال الدفع مطلوب عند اختيار المحفظة.', 'en' => 'Payment receipt is required when paying by wallet.'],
+            'payment_receipt.image' => ['ar' => 'إيصال الدفع يجب أن يكون صورة.', 'en' => 'Payment receipt must be an image.'],
+            'payment_receipt.mimes' => ['ar' => 'صيغة الإيصال يجب أن تكون jpg أو jpeg أو png أو webp.', 'en' => 'Receipt format must be jpg, jpeg, png, or webp.'],
+            'payment_receipt.max' => ['ar' => 'حجم الإيصال يجب ألا يتجاوز 2 ميجابايت.', 'en' => 'Receipt size must not exceed 2MB.'],
 
-            'customer_email.email' =>
-                'البريد الإلكتروني غير صحيح.',
+            'wallet_number.required_if' => ['ar' => 'رقم المحفظة مطلوب عند اختيار الدفع بالمحفظة.', 'en' => 'Wallet number is required when paying by wallet.'],
 
-            'payment_method.required' =>
-                'طريقة الدفع مطلوبة.',
-
-            'payment_method.in' =>
-                'طريقة الدفع غير صحيحة.',
-
-            'payment_receipt.required_if' =>
-                'إيصال الدفع مطلوب عند اختيار المحفظة.',
-
-            'payment_receipt.image' =>
-                'إيصال الدفع يجب أن يكون صورة.',
-
-            'payment_receipt.mimes' =>
-                'صيغة الإيصال يجب أن تكون jpg أو jpeg أو png أو webp.',
-
-            'payment_receipt.max' =>
-                'حجم الإيصال يجب ألا يتجاوز 2MB.',
-        ];
+            'shipping_fee.numeric' => ['ar' => 'رسوم الشحن يجب أن تكون رقماً.', 'en' => 'Shipping fee must be a number.'],
+            'shipping_fee.min' => ['ar' => 'رسوم الشحن يجب ألا تقل عن صفر.', 'en' => 'Shipping fee must be at least 0.'],
+        ]);
     }
 }

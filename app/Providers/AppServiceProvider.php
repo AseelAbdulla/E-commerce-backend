@@ -30,6 +30,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Order::observe(OrderObserver::class);
         Review::observe(ReviewObserver::class);
+
+        
         /*
         |--------------------------------------------------------------------------
         | Password Reset URL

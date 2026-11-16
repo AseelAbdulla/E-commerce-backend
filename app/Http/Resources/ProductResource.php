@@ -75,6 +75,29 @@ class ProductResource extends JsonResource
                     : null;
             }),
 
+            // يظهر فقط بمنتجات جاية من endpoint الأكثر مبيعاً
+            'sales_count' => $this->when(
+                isset($this->sales_count),
+                fn () => (int) $this->sales_count
+            ),
+
+            // يظهر فقط بمنتجات جاية من endpoint الأكثر مبيعاً
+            'badge' => $this->when(
+                isset($this->badge),
+                fn () => $this->badge
+            ),
+
+            // متوسط التقييم وعدد التقييمات (يظهر فقط لو تم تحميلهم)
+            'rating_average' => $this->when(
+                $this->approved_reviews_avg_rating !== null,
+                fn () => round((float) $this->approved_reviews_avg_rating, 1)
+            ),
+
+            'reviews_count' => $this->when(
+                isset($this->approved_reviews_count),
+                fn () => (int) $this->approved_reviews_count
+            ),
+
             'created_at' => $this->created_at,
         ];
     }

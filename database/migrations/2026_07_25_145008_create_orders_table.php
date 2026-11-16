@@ -29,6 +29,11 @@ return new class extends Migration
                 ->constrained('users')
                 ->cascadeOnDelete();
 
+            $table->foreignId('import_request_id')
+                ->nullable()
+                ->constrained('import_requests')
+                ->nullOnDelete();
+
             /*
             |--------------------------------------------------------------------------
             | Order Information
